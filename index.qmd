@@ -1,0 +1,72 @@
+---
+title: "Dynamic Graphs"
+author: "Drew Clayson"
+format: html
+editor: visual
+---
+
+# Dynamic Graphs
+
+```{r}
+# Finding data from the World Bank Indicators
+library(wbstats)
+# Just in case, but probably not necessary
+WBCache <- wb_cache()
+# SI.POV.GINI, 6.0.GDPpc_constant will be downloaded in one dataset
+WBData <- wb_data(country = "countries_only", indicator = c("SI.POV.GINI", "NY.GDP.PCAP.KD"))
+# Cleaning data removing missing values.
+clean_data <- WBData[-c(which(is.na(WBData$SI.POV.GINI) | is.na(WBData$`NY.GDP.PCAP.KD`))),]
+# Add country regions for more effective groupings
+wb_countries <- wb_countries()
+wb_dat <- merge(clean_data, y = wb_countries[c("iso2c", "region")], by = "iso2c", all.x = TRUE)
+# Make neater column names
+colnames(wb_dat)[5] <- "GDPpC"
+colnames(wb_dat)[6] <- "Gini"
+# Create an interaction to show more info when grouping in ggplot?
+wb_dat$CountryDate <- interaction(wb_dat$country, wb_dat$date)
+```
+
+Now to begin plotting:
+
+```{r, echo=FALSE}
+#library(ggplot2)
+#library(viridis)
+#library(plotly)
+#gini_p <- ggplot(data = wb_dat,
+#       mapping = aes(x = GDPpC,
+#                     y = Gini,
+#                     color = region))
+#gini_p <- gini_p + geom_point(alpha = 0.6, aes(group = #CountryDate)) + geom_smooth(method = "loess", alpha = 0.3) 
+#gini_p <- gini_p + scale_x_continuous(trans = "log10", labels = scales::dollar_format(), limits = c(200,120000)) +
+#scale_color_viridis(discrete = TRUE, option = "H") + 
+ # theme_classic(base_size=12)
+#Adding legend and converting to plotly
+#gini_p_plotly <- ggplotly(gini_p) %>% 
+ # layout(legend = list(x=1, y=0))
+
+#ggplotly(gini_p_plotly, tooltip = "CountryDate")
+```
+
+```{r, message = FALSE}
+library(ggplot2)
+library(viridis)
+library(plotly)
+gini_highlight <- highlight_key(wb_dat, ~country)
+gini_p_hl <- ggplot(data = gini_highlight,
+       mapping = aes(x = GDPpC,
+                     y = Gini,
+                     color = region))
+gini_p_hl <- gini_p_hl + geom_point(alpha = 0.6, aes(group = CountryDate)) + geom_smooth(method = "loess", alpha = 0.3) 
+gini_p_hl <- gini_p_hl + scale_x_continuous(trans = "log10", labels = scales::dollar_format(), limits = c(200,120000)) +
+  ylab('Inequality(gini)') + xlab('GDP per Capita') + labs(title = 'Kuznets Curves',
+                                caption = 'Narrow the region using the legend, hover over a point to see the country and date of the datum. Click on the point to highlight other points for the same country') +
+scale_color_viridis(discrete = TRUE, option = "H") + 
+  theme_classic(base_size=12)
+gini_p_hl_plotly <- ggplotly(gini_p_hl, tooltip = c("CountryDate","GDPpC")) %>%
+  highlight(on = "plotly_click", 
+            off = "plotly_relayout",
+            opacityDim = 0.2)
+gini_p_hl_plotly
+```
+
+Narrow the region using the legend, hover over a point to see the country and date of the datum. Click on the point to highlight other points for the same country. By isolating the region it helps to see the general trend the kuznets curve follows.
